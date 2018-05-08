@@ -1,0 +1,33 @@
+// The Data API is used to retrieve and/or put all the data required
+// by a spire-server's datastore, hence it can be used to make logical
+// backups of the data.
+
+syntax = "proto3";
+package spire.api.data;
+option go_package = "data";
+
+import public "google/api/annotations.proto";
+
+// A type that represents one chunk of a data's dump.
+message DumpChunk {    
+    bytes data = 1;
+
+//    Progress progress = 2;
+}
+/*
+message Progress {
+    // Bytes dumped (counting current DumpChunk content)
+    int64 dumped = 1;
+    // Total bytes to dump
+    int64 total = 2;
+}
+*/
+service Data {
+    // Dump retrieves all the data from the datastore chunk by chunk.
+    rpc Dump(Empty) returns (stream DumpChunk);
+
+    // Replays puts all the DumpChunks of a dump into datastore.
+    rpc Replay(stream DumpChunk) returns (Empty);
+}
+
+message Empty {}
