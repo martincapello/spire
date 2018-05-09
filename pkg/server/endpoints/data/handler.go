@@ -15,7 +15,6 @@ type Handler struct {
 func (h *Handler) Dump(req *data.Empty, stream data.Data_DumpServer) error {
 	ds := h.Catalog.DataStores()[0]
 
-	datastore.Da
 	return ds.Dump(req, stream)
 }
 
