@@ -97,9 +97,9 @@ func (m *Selector) GetValue() string {
 	return ""
 }
 
-// * Represents a type with a list of NodeResolution.
+// * Represents a type with a list of Selector.
 type Selectors struct {
-	// * A list of NodeResolution.
+	// * A list of Selector.
 	Entries []*Selector `protobuf:"bytes,1,rep,name=entries" json:"entries,omitempty"`
 }
 
