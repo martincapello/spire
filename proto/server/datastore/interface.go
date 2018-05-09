@@ -59,6 +59,9 @@ type DataStore interface {
 
 	Configure(request *spi.ConfigureRequest) (*spi.ConfigureResponse, error)
 	GetPluginInfo(request *spi.GetPluginInfoRequest) (*spi.GetPluginInfoResponse, error)
+
+	Dump(*common.Empty, DataStore_DumpServer) error
+	Restore(stream DataStore_RestoreServer) error
 }
 
 type DataStorePlugin struct {

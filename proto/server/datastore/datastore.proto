@@ -282,6 +282,33 @@ message JoinToken {
     int64 expiry = 2;
 }
 
+// Represents a logical dump's message of the current datastore's data.
+message Dump {
+    message Progress {
+        message Count {
+            int32 bundles = 1;
+            int32 joinTokens = 2;
+            int32 attestedNodeEntries = 3;
+            int32 nodeResolverMapEntries = 4;
+            int32 registrationEntries = 5;
+            // Amount of bytes occupied by certificates of this count's bundles.
+            int32 certBytes = 6;
+        }
+        // Amount of entities already dumped per entity type, including this Dump's entities.
+        Count dumped = 1;
+        // Total amount of entities to dump per entity type.
+        Count total = 2;
+    }
+    // Data about dump's progress.
+    Progress progress = 1;
+    // Entities of each type to be dumped.
+    repeated Bundle bundles = 2;
+    repeated JoinToken joinTokens = 3;
+    repeated AttestedNodeEntry attestedNodeEntries = 4;
+    repeated NodeResolverMapEntry nodeResolverMapEntries = 5;
+    repeated spire.common.RegistrationEntry registrationEntries = 6;
+}
+
 service DataStore {
     // Creates a Bundle
     rpc CreateBundle(Bundle) returns (Bundle);
@@ -349,4 +376,13 @@ service DataStore {
     rpc Configure(spire.common.plugin.ConfigureRequest) returns (spire.common.plugin.ConfigureResponse);
     // Returns the version and related metadata of the installed plugin
     rpc GetPluginInfo(spire.common.plugin.GetPluginInfoRequest) returns (spire.common.plugin.GetPluginInfoResponse);
+
+    // Dumps the datastore data using a server stream. Each Dump message streamed can contain
+    // any number of each entity type. So, callers must not make any assumptions about 
+    // how many messages will be streamed.
+    rpc Dump(spire.common.Empty) returns (stream spire.server.datastore.Dump);
+    // Restores the datastore using a client stream. Each Dump message streamed can contain
+    // any number of each entity type. So, datastores must not make any assumptions about 
+    // how many messages will be streamed.
+    rpc Restore(stream spire.server.datastore.Dump) returns (spire.common.Empty);
 }

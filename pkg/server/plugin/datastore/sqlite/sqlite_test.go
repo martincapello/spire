@@ -773,6 +773,26 @@ func Test_race(t *testing.T) {
 	})
 }
 
+func Test_Dump(t *testing.T) {
+	ds := createDefault(t)
+
+	cert, _, err := testutil.LoadSVIDFixture()
+	require.NoError(t, err)
+
+	bundle := &datastore.Bundle{
+		TrustDomain: "spiffe://foo/",
+		CaCerts:     cert.Raw,
+	}
+
+	// create bundle
+	_, err = ds.CreateBundle(bundle)
+	require.NoError(t, err)
+
+	ds.Dump(&common.Empty{}, nil)
+
+	// Assert len(cert.Raw) == dump.Progress.Total.CertBytes
+}
+
 func createDefault(t *testing.T) datastore.DataStore {
 	ds, err := NewTemp()
 	if err != nil {

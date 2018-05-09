@@ -1,11 +1,10 @@
 package data
 
 import (
-	"fmt"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spire/pkg/server/catalog"
 	"github.com/spiffe/spire/proto/api/data"
+	"github.com/spiffe/spire/proto/server/datastore"
 )
 
 type Handler struct {
@@ -14,11 +13,13 @@ type Handler struct {
 }
 
 func (h *Handler) Dump(req *data.Empty, stream data.Data_DumpServer) error {
-	//ds := h.Catalog.DataStores()[0]
+	ds := h.Catalog.DataStores()[0]
 
-	return nil
+	datastore.Da
+	return ds.Dump(req, stream)
 }
 
-func (h *Handler) Replay(stream data.Data_ReplayServer) error {
-	return fmt.Errorf("not implemented")
+func (h *Handler) Restore(stream data.Data_RestoreServer) error {
+	ds := h.Catalog.DataStores()[0]
+	return ds.Restore(req, stream)
 }

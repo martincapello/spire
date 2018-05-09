@@ -959,6 +959,52 @@ func (sqlitePlugin) GetPluginInfo(*spi.GetPluginInfoRequest) (*spi.GetPluginInfo
 	return &pluginInfo, nil
 }
 
+func (ds *sqlitePlugin) Dump(req *common.Empty, stream datastore.DataStore_DumpServer) error {
+	ds.mutex.Lock()
+	defer ds.mutex.Unlock()
+
+	tx := ds.db.Begin()
+	// We just defer a Rollback, we don't have to commit anything, nothing should ever
+	// change when dumping data.
+	defer tx.Rollback()
+
+	progress, err := ds.newDumpProgress(tx)
+	if err != nil {
+		return err
+	}
+
+	err = ds.dumpBundles(tx, stream, progress)
+	if err != nil {
+		return err
+	}
+
+	err = ds.dumpJoinTokens(tx, stream, progress)
+	if err != nil {
+		return err
+	}
+
+	err = ds.dumpAttestedNodeEntries(tx, stream, progress)
+	if err != nil {
+		return err
+	}
+
+	err = ds.dumpNodeResolverMapEntries(tx, stream, progress)
+	if err != nil {
+		return err
+	}
+
+	err = ds.dumpRegistrationEntries(tx, stream, progress)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds *sqlitePlugin) Restore(stream datastore.DataStore_RestoreServer) error {
+	return fmt.Errorf("not implemented yet")
+}
+
 // listMatchingEntries finds registered entries containing all specified selectors. Note
 // that entries containing _more_ than the specified selectors may be returned, since
 // that is also considered a "match"
@@ -1117,6 +1163,193 @@ func (ds *sqlitePlugin) convertEntries(fetchedRegisteredEntries []RegisteredEntr
 		})
 	}
 	return ds.sortEntries(responseEntries), nil
+}
+
+func (ds *sqlitePlugin) modelToRegistrationEntry(model *RegisteredEntry) *common.RegistrationEntry {
+	var selectors []*common.Selector
+	for _, selector := range model.Selectors {
+		selectors = append(selectors, &common.Selector{
+			Type:  selector.Type,
+			Value: selector.Value,
+		})
+	}
+	// TODO: handle federated bundles once https://github.com/spiffe/spire/issues/42 is done
+	return &common.RegistrationEntry{
+		EntryId:   model.EntryID,
+		Selectors: selectors,
+		SpiffeId:  model.SpiffeID,
+		ParentId:  model.ParentID,
+		Ttl:       model.TTL,
+	}
+}
+
+// newDumpProgress creates a *Dump_Progress struct containing the total count
+// of each entity and how many bytes occupy all the bundles' CA certs.
+func (ds *sqlitePlugin) newDumpProgress(tx *gorm.DB) (*datastore.Dump_Progress, error) {
+	progress := &datastore.Dump_Progress{
+		Dumped: &datastore.Dump_Progress_Count{},
+		Total:  &datastore.Dump_Progress_Count{},
+	}
+
+	err := tx.Model(&Bundle{}).Count(&progress.Total.Bundles).Error
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Model(&JoinToken{}).Count(&progress.Total.JoinTokens).Error
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Model(&AttestedNodeEntry{}).Count(&progress.Total.AttestedNodeEntries).Error
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Model(&NodeResolverMapEntry{}).Count(&progress.Total.NodeResolverMapEntries).Error
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Model(&RegisteredEntry{}).Count(&progress.Total.RegistrationEntries).Error
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Model(&CACert{}).Select("sum(length(cert))").Row().Scan(&progress.Total.CertBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return progress, nil
+}
+
+func (ds *sqlitePlugin) dumpBundles(tx *gorm.DB, stream datastore.DataStore_DumpServer, progress *datastore.Dump_Progress) error {
+	var bundles []*Bundle
+	err := tx.Find(&bundles).Error
+	if err != nil {
+		return err
+	}
+
+	for _, bundle := range bundles {
+		err := tx.Model(&bundle).Related(&bundle.CACerts).Error
+		if err != nil {
+			return err
+		}
+
+		b, err := ds.modelToBundle(bundle)
+		if err != nil {
+			return err
+		}
+		dump := &datastore.Dump{Progress: progress}
+		dump.AppendBundle(b)
+
+		err = stream.Send(dump)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ds *sqlitePlugin) dumpJoinTokens(db *gorm.DB, stream datastore.DataStore_DumpServer, progress *datastore.Dump_Progress) error {
+	var joinTokens []*JoinToken
+	err := db.Find(&joinTokens).Error
+	if err != nil {
+		return err
+	}
+
+	for _, joinToken := range joinTokens {
+		dump := &datastore.Dump{Progress: progress}
+		dump.AppendJoinToken(&datastore.JoinToken{
+			Token:  joinToken.Token,
+			Expiry: joinToken.Expiry,
+		})
+
+		err = stream.Send(dump)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ds *sqlitePlugin) dumpAttestedNodeEntries(db *gorm.DB, stream datastore.DataStore_DumpServer, progress *datastore.Dump_Progress) error {
+	var attestedNodeEntries []*AttestedNodeEntry
+	err := db.Find(&attestedNodeEntries).Error
+	if err != nil {
+		return err
+	}
+
+	for _, attestedNodeEntry := range attestedNodeEntries {
+		dump := &datastore.Dump{Progress: progress}
+		dump.AppendAttestedNodeEntry(&datastore.AttestedNodeEntry{
+			AttestedDataType:   attestedNodeEntry.DataType,
+			BaseSpiffeId:       attestedNodeEntry.SpiffeID,
+			CertExpirationDate: attestedNodeEntry.ExpiresAt.Format(datastore.TimeFormat),
+			CertSerialNumber:   attestedNodeEntry.SerialNumber,
+		})
+
+		err = stream.Send(dump)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ds *sqlitePlugin) dumpNodeResolverMapEntries(db *gorm.DB, stream datastore.DataStore_DumpServer, progress *datastore.Dump_Progress) error {
+	var nodeResolverMapEntries []*NodeResolverMapEntry
+	err := db.Find(&nodeResolverMapEntries).Error
+	if err != nil {
+		return err
+	}
+
+	for _, nodeResolverMapEntry := range nodeResolverMapEntries {
+		dump := &datastore.Dump{Progress: progress}
+		dump.AppendNodeResolverMapEntry(&datastore.NodeResolverMapEntry{
+			BaseSpiffeId: nodeResolverMapEntry.SpiffeID,
+			Selector: &common.Selector{
+				Type:  nodeResolverMapEntry.Type,
+				Value: nodeResolverMapEntry.Value,
+			},
+		})
+
+		err = stream.Send(dump)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ds *sqlitePlugin) dumpRegistrationEntries(db *gorm.DB, stream datastore.DataStore_DumpServer, progress *datastore.Dump_Progress) error {
+	var registrationEntries []*RegisteredEntry
+	err := db.Find(&registrationEntries).Error
+	if err != nil {
+		return err
+	}
+
+	for _, registrationEntry := range registrationEntries {
+		err := db.Model(&registrationEntry).Related(&registrationEntry.Selectors).Error
+		if err != nil {
+			return err
+		}
+
+		dump := &datastore.Dump{Progress: progress}
+		dump.AppendRegistrationEntry(ds.modelToRegistrationEntry(registrationEntry))
+
+		err = stream.Send(dump)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // registrationEntries provides a sortable type to help ensure stable

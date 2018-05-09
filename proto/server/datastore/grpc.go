@@ -185,6 +185,20 @@ func (m *GRPCServer) GetPluginInfo(ctx context.Context, req *spi.GetPluginInfoRe
 //
 //
 
+func (m *GRPCServer) Dump(req *common.Empty, stream DataStore_DumpServer) error {
+	err := m.DataStoreImpl.Dump(req, stream)
+	return err
+}
+
+func (m *GRPCServer) Restore(stream DataStore_RestoreServer) error {
+	err := m.DataStoreImpl.Restore(stream)
+	return err
+}
+
+//
+//
+//
+
 type GRPCClient struct {
 	client DataStoreClient
 }
@@ -356,4 +370,18 @@ func (m *GRPCClient) Configure(req *spi.ConfigureRequest) (*spi.ConfigureRespons
 func (m *GRPCClient) GetPluginInfo(req *spi.GetPluginInfoRequest) (*spi.GetPluginInfoResponse, error) {
 	res, err := m.client.GetPluginInfo(context.Background(), req)
 	return res, err
+}
+
+//
+//
+//
+
+func (m *GRPCClient) Dump(req *common.Empty) (DataStore_DumpClient, error) {
+	cli, err := m.client.Dump(context.Background(), req)
+	return cli, err
+}
+
+func (m *GRPCClient) Restore() (DataStore_RestoreClient, error) {
+	cli, err := m.client.Restore(context.Background())
+	return cli, err
 }

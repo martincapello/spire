@@ -26,8 +26,8 @@ service Data {
     // Dump retrieves all the data from the datastore chunk by chunk.
     rpc Dump(Empty) returns (stream DumpChunk);
 
-    // Replays puts all the DumpChunks of a dump into datastore.
-    rpc Replay(stream DumpChunk) returns (Empty);
+    // Restore puts all the DumpChunks of a dump into datastore.
+    rpc Restore(stream DumpChunk) returns (Empty);
 }
 
 message Empty {}

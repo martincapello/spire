@@ -1011,7 +1011,7 @@ int64 total = 2;
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | Dump | [Empty](#spire.api.data.Empty) | [DumpChunk](#spire.api.data.Empty) | Dump retrieves all the data from the datastore chunk by chunk. |
-| Replay | [DumpChunk](#spire.api.data.DumpChunk) | [Empty](#spire.api.data.DumpChunk) | Replays puts all the DumpChunks of a dump into datastore. |
+| Restore | [DumpChunk](#spire.api.data.DumpChunk) | [Empty](#spire.api.data.DumpChunk) | Restore puts all the DumpChunks of a dump into datastore. |
 
  
 

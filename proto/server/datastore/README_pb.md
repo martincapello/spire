@@ -46,6 +46,9 @@
     - [DeleteNodeResolverMapEntryResponse](#spire.server.datastore.DeleteNodeResolverMapEntryResponse)
     - [DeleteRegistrationEntryRequest](#spire.server.datastore.DeleteRegistrationEntryRequest)
     - [DeleteRegistrationEntryResponse](#spire.server.datastore.DeleteRegistrationEntryResponse)
+    - [Dump](#spire.server.datastore.Dump)
+    - [Dump.Progress](#spire.server.datastore.Dump.Progress)
+    - [Dump.Progress.Count](#spire.server.datastore.Dump.Progress.Count)
     - [FetchAttestedNodeEntryRequest](#spire.server.datastore.FetchAttestedNodeEntryRequest)
     - [FetchAttestedNodeEntryResponse](#spire.server.datastore.FetchAttestedNodeEntryResponse)
     - [FetchNodeResolverMapEntryRequest](#spire.server.datastore.FetchNodeResolverMapEntryRequest)
@@ -563,6 +566,62 @@ Represents the deleted Registration entry
 
 
 
+<a name="spire.server.datastore.Dump"/>
+
+### Dump
+Represents a logical dump&#39;s message of the current datastore&#39;s data.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| progress | [Dump.Progress](#spire.server.datastore.Dump.Progress) |  | Data about dump&#39;s progress. |
+| bundles | [Bundle](#spire.server.datastore.Bundle) | repeated | Entities of each type to be dumped. |
+| joinTokens | [JoinToken](#spire.server.datastore.JoinToken) | repeated |  |
+| attestedNodeEntries | [AttestedNodeEntry](#spire.server.datastore.AttestedNodeEntry) | repeated |  |
+| nodeResolverMapEntries | [NodeResolverMapEntry](#spire.server.datastore.NodeResolverMapEntry) | repeated |  |
+| registrationEntries | [.spire.common.RegistrationEntry](#spire.server.datastore..spire.common.RegistrationEntry) | repeated |  |
+
+
+
+
+
+
+<a name="spire.server.datastore.Dump.Progress"/>
+
+### Dump.Progress
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| dumped | [Dump.Progress.Count](#spire.server.datastore.Dump.Progress.Count) |  | Amount of entities already dumped per entity type, including this Dump&#39;s entities. |
+| total | [Dump.Progress.Count](#spire.server.datastore.Dump.Progress.Count) |  | Total amount of entities to dump per entity type. |
+
+
+
+
+
+
+<a name="spire.server.datastore.Dump.Progress.Count"/>
+
+### Dump.Progress.Count
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| bundles | [int32](#int32) |  |  |
+| joinTokens | [int32](#int32) |  |  |
+| attestedNodeEntries | [int32](#int32) |  |  |
+| nodeResolverMapEntries | [int32](#int32) |  |  |
+| registrationEntries | [int32](#int32) |  |  |
+| certBytes | [int32](#int32) |  | Amount of bytes occupied by certificates of this count&#39;s bundles. |
+
+
+
+
+
+
 <a name="spire.server.datastore.FetchAttestedNodeEntryRequest"/>
 
 ### FetchAttestedNodeEntryRequest
@@ -952,6 +1011,8 @@ Represents the updated Registration entry
 | PruneTokens | [JoinToken](#spire.server.datastore.JoinToken) | [spire.common.Empty](#spire.server.datastore.JoinToken) | Delete all tokens with expiry less than the one specified |
 | Configure | [spire.common.plugin.ConfigureRequest](#spire.common.plugin.ConfigureRequest) | [spire.common.plugin.ConfigureResponse](#spire.common.plugin.ConfigureRequest) | Applies the plugin configuration |
 | GetPluginInfo | [spire.common.plugin.GetPluginInfoRequest](#spire.common.plugin.GetPluginInfoRequest) | [spire.common.plugin.GetPluginInfoResponse](#spire.common.plugin.GetPluginInfoRequest) | Returns the version and related metadata of the installed plugin |
+| Dump | [spire.common.Empty](#spire.common.Empty) | [Dump](#spire.common.Empty) | Dumps the datastore data using a server stream. Each Dump message streamed can contain any number of each entity type. So, callers must not make any assumptions about how many messages will be streamed. |
+| Restore | [Dump](#spire.server.datastore.Dump) | [spire.common.Empty](#spire.server.datastore.Dump) | Restores the datastore using a client stream. Each Dump message streamed can contain any number of each entity type. So, datastores must not make any assumptions about how many messages will be streamed. |
 
  
 
