@@ -10,7 +10,7 @@ func (b *Bundle) Append(cert CACert) {
 
 func (b *Bundle) Contains(cert CACert) bool {
 	for _, c := range b.CACerts {
-		if bytes.Compare(c.Cert, cert.Cert) == 0 {
+		if bytes.Equal(c.Cert, cert.Cert) {
 			return true
 		}
 	}
