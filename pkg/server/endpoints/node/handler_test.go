@@ -994,7 +994,7 @@ UigDxnLeJxW17hsOD8xO8J7WdHMaIhXvrTx7EhxWC1hpCXCsxn6UVlLL
 	s.Require().NoError(err)
 	// Append one JWK on the bundle, so it must be reported in the result of PushJWTKeyUpstream
 	// along with the JWK sent on the request.
-	s.ds.AppendBundle(context.Background(),
+	_, err := s.ds.AppendBundle(context.Background(),
 		&datastore.AppendBundleRequest{
 			Bundle: &common.Bundle{
 				TrustDomainId: trustDomainID,
@@ -1006,6 +1006,7 @@ UigDxnLeJxW17hsOD8xO8J7WdHMaIhXvrTx7EhxWC1hpCXCsxn6UVlLL
 				},
 			},
 		})
+	s.Require().NoError(err)
 
 	s.attestAgent()
 
@@ -1581,9 +1582,9 @@ func (s *HandlerSuite) makeCSRs(entryID, spiffeID string) map[string][]byte {
 	return csrs
 }
 
-func (s *HandlerSuite) fetchBundle(trustDomainID string) *common.Bundle {
+func (s *HandlerSuite) fetchBundle(tdID string) *common.Bundle {
 	r, err := s.ds.FetchBundle(context.Background(), &datastore.FetchBundleRequest{
-		TrustDomainId: trustDomainID,
+		TrustDomainId: tdID,
 	})
 	s.Require().NoError(err)
 	return r.Bundle
