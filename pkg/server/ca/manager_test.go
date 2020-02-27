@@ -19,6 +19,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/spiffe/spire/pkg/common/pemutil"
 	"github.com/spiffe/spire/pkg/common/telemetry"
 	telemetry_server "github.com/spiffe/spire/pkg/common/telemetry/server"
 	"github.com/spiffe/spire/pkg/server/plugin/datastore"
@@ -226,6 +227,36 @@ func (s *ManagerSuite) TestUpstreamIntermediateSignedWithUpstreamBundle() {
 			"by this server may have trouble communicating with workloads outside "+
 			"this cluster when using JWT-SVIDs."),
 	)
+}
+
+func (s *ManagerSuite) TestUpstreamAuthorityWithPublishJWTKeyImplemented() {
+	bundle := s.createBundle()
+	s.Require().Len(bundle.JwtSigningKeys, 0)
+
+	jwtSigningKey, _ := pemutil.ParseSigner([]byte(`
+-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgGZx/yLVskGyXAyIT
+uDe7PI1X4Dt1boMWfysKPyOJeMuhRANCAARzgo1R4J4xtjGpmGFNl2KADaxDpgx3
+KfDQqPUcYWUMm2JbwFyHxQfhJfSf+Mla5C4FnJG6Ksa7pWjITPf5KbHi
+-----END PRIVATE KEY-----
+`))
+	pkixBytes, err := x509.MarshalPKIXPublicKey(jwtSigningKey.Public())
+	s.Require().NoError(err)
+	jwk := &common.PublicKey{
+		Kid:       "kid",
+		PkixBytes: pkixBytes,
+	}
+	upstreamAuthority := fakeupstreamauthority.New(s.T(), fakeupstreamauthority.Config{
+		TrustDomain: testTrustDomain,
+		PublishJWTKeyResponse: &upstreamauthority.PublishJWTKeyResponse{
+			UpstreamJwtKeys: []*common.PublicKey{jwk},
+		},
+	})
+	s.initUpstreamSignedManager(upstreamAuthority, true)
+
+	bundle = s.fetchBundle()
+	s.Len(bundle.JwtSigningKeys, 1)
+	s.Equal("kid", bundle.JwtSigningKeys[0].Kid)
 }
 
 func (s *ManagerSuite) TestX509CARotation() {
@@ -797,6 +828,16 @@ func (s *ManagerSuite) requireBundleJWTKeys(jwtKeys ...*JWTKey) {
 	s.RequireProtoEqual(expected, &common.Bundle{
 		JwtSigningKeys: bundle.JwtSigningKeys,
 	})
+}
+
+func (s *ManagerSuite) createBundle() *common.Bundle {
+	resp, err := s.ds.CreateBundle(ctx, &datastore.CreateBundleRequest{
+		Bundle: &common.Bundle{
+			TrustDomainId: testTrustDomainURL.String(),
+		},
+	})
+	s.Require().NoError(err)
+	return resp.Bundle
 }
 
 func (s *ManagerSuite) fetchBundle() *common.Bundle {
